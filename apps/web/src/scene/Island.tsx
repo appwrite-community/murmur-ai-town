@@ -154,9 +154,9 @@ function Lamps() {
     canvas.width = canvas.height = 128;
     const g = canvas.getContext('2d')!;
     const gradient = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-    gradient.addColorStop(0, 'rgba(255, 190, 110, 0.85)');
-    gradient.addColorStop(0.45, 'rgba(255, 160, 80, 0.35)');
-    gradient.addColorStop(1, 'rgba(255, 140, 60, 0)');
+    gradient.addColorStop(0, 'rgba(255, 150, 60, 0.75)');
+    gradient.addColorStop(0.4, 'rgba(240, 110, 40, 0.3)');
+    gradient.addColorStop(1, 'rgba(220, 90, 30, 0)');
     g.fillStyle = gradient;
     g.fillRect(0, 0, 128, 128);
     return new THREE.MeshBasicMaterial({
@@ -168,11 +168,16 @@ function Lamps() {
       toneMapped: false,
     });
   }, []);
+  const square = useRef<THREE.PointLight>(null);
   useFrame(() => {
-    material.opacity = useSky.getState().night * 0.9;
+    const night = useSky.getState().night;
+    material.opacity = night * 0.75;
+    if (square.current) square.current.intensity = night * 14;
   });
   return (
     <group>
+      {/* One warm light over the square lights the stalls and the fountain. */}
+      <pointLight ref={square} position={[0, 2.6, 0]} color="#ff9d4a" distance={11} decay={1.4} intensity={0} />
       {LAMP_SPOTS.map(([x, z], i) => (
         <mesh key={i} position={[x, 0.035, z]} rotation-x={-Math.PI / 2} material={material} renderOrder={2}>
           <planeGeometry args={[6.4, 6.4]} />
