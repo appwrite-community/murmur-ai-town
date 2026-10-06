@@ -186,11 +186,14 @@ async function provisionSite() {
   return undefined;
 }
 
+const onlySite = process.argv.includes('--only-site');
 try {
-  await createIfMissing(() => tablesDB.create({ databaseId, name: DATABASE.name }));
-  console.log(`Database ${databaseId}`);
-  for (const table of TABLES) await provisionTable(table);
-  for (const config of FUNCTIONS) await provisionFunction(config);
+  if (!onlySite) {
+    await createIfMissing(() => tablesDB.create({ databaseId, name: DATABASE.name }));
+    console.log(`Database ${databaseId}`);
+    for (const table of TABLES) await provisionTable(table);
+    for (const config of FUNCTIONS) await provisionFunction(config);
+  }
   const domain = process.argv.includes('--skip-site') ? undefined : await provisionSite();
   await provisionWebPlatforms(['localhost', ...(domain ? [domain] : [])]);
   console.log('Done. Next: pnpm seed, then pnpm town start');
