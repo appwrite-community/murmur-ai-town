@@ -41,6 +41,7 @@ export function ResidentCard() {
   const residents = useTown((s) => s.residents);
   const places = useTown((s) => s.places);
   const tick = useTown((s) => s.world?.tick);
+  const whisperOpen = useTown((s) => s.whisperOpen);
   // Reload memories when something new happens to this resident.
   const latest = useTown((s) => s.events.find((e) => s.selectedId && e.residentIds?.includes(s.selectedId))?.$id);
   const [details, setDetails] = useState<{ memories: Memory[]; relationships: Relationship[] } | null>(null);
@@ -123,7 +124,8 @@ export function ResidentCard() {
         </>
       )}
 
-      <div className="card-actions">
+      {/* The whisper dialog has its own buttons, so the card hides its own while it is open. */}
+      {!whisperOpen && <div className="card-actions">
         <button
           className="btn btn-pink"
           disabled={resting}
@@ -134,7 +136,7 @@ export function ResidentCard() {
         <button className={`btn btn-cream ${following ? 'pressed' : ''}`} onClick={() => setFollowing((f) => !f)}>
           <EyeIcon /> {following ? 'Following' : 'Follow'}
         </button>
-      </div>
+      </div>}
       {resting && <p className="card-note">The town is resting. Whispers open again when it wakes up.</p>}
     </section>
   );
