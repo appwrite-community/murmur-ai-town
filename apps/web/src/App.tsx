@@ -48,11 +48,13 @@ export function App() {
     };
   }, []);
 
+  // Development only: ?render=1 hides the HUD and the sky, for marketing renders.
+  const render = import.meta.env.DEV && new URLSearchParams(location.search).has('render');
   return (
-    <div className="game">
+    <div className={`game ${render ? 'render-mode' : ''}`}>
       <div className="backdrop" ref={backdrop} />
       <Scene backdrop={backdrop} />
-      <HUD />
+      {!render && <HUD />}
     </div>
   );
 }

@@ -69,7 +69,7 @@ export function ResidentCard() {
   const placeName = (id: string) => places[id]?.name ?? id;
   const friends = (details?.relationships ?? [])
     .map((rel) => ({ other: residents[rel.a === resident.$id ? rel.b : rel.a], affinity: rel.affinity }))
-    .filter((f) => f.other)
+    .filter((f, i, all) => f.other && all.findIndex((g) => g.other?.$id === f.other.$id) === i)
     .sort((a, b) => Math.abs(b.affinity) - Math.abs(a.affinity))
     .slice(0, 3);
 

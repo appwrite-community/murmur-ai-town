@@ -1,6 +1,7 @@
 import { useProgress } from '@react-three/drei';
 import { useEffect, useState } from 'react';
 import { useTown } from '../lib/store';
+import { Bubbles } from './Bubbles';
 import { Clock } from './Clock';
 import { Controls } from './Controls';
 import { Crier } from './Crier';
@@ -58,6 +59,7 @@ export function HUD() {
     <div className="hud">
       {ready && (
         <>
+          <Bubbles />
           <div className="hud-top-left">
             <Clock />
             <ResidentCard />

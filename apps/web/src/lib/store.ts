@@ -46,13 +46,16 @@ export const townActions = {
   loaded(data: { world: World; places: Place[]; residents: Resident[]; events: TownEvent[]; rumors: Rumor[] }, visitorId: string) {
     // On first load, place the clock where it is in the current tick.
     const age = data.world.lastTickAt ? (Date.now() - new Date(data.world.lastTickAt).getTime()) / 1000 : TICK_SECONDS;
+    const current = useTown.getState();
+    // If Realtime already delivered this tick, keep the moment it arrived.
+    const arrived = current.world && current.world.tick >= data.world.tick ? current.tickArrivedAt : null;
     useTown.setState({
       status: 'ready',
       visitorId,
-      world: data.world,
-      tickArrivedAt: performance.now() - Math.min(Math.max(age, 0), TICK_SECONDS) * 1000,
+      world: current.world && current.world.tick > data.world.tick ? current.world : data.world,
+      tickArrivedAt: arrived ?? performance.now() - Math.min(Math.max(age, 0), TICK_SECONDS) * 1000,
       places: byId(data.places),
-      residents: byId(data.residents),
+      residents: { ...byId(data.residents), ...current.residents },
       events: data.events,
       rumors: byId(data.rumors),
     });

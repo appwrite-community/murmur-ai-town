@@ -1,22 +1,23 @@
 // One resident: an animated Kenney mini character that walks the path network.
-import { Html, useAnimations, useGLTF } from '@react-three/drei';
+import { useAnimations, useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { EmoteIcon } from '../hud/icons';
-import { useSpeech } from '../lib/speech';
 import { townActions, useTown } from '../lib/store';
 import type { Resident as ResidentRow } from '../lib/types';
 import { ANCHORS, nearestNode, route, standingSpot, type Vec2 } from '../town/layout';
 import { cameraState } from './CameraRig';
+import { useSky } from './sky';
 import { softenMaterial } from './Kit';
 
 const WALK_SPEED = 1.7; // units per second
 
 /** Live positions of every resident, for facing partners and following with the camera. */
 export const livePositions = new Map<string, THREE.Vector3>();
-const SCALE = 1.3;
+/** 0 when a resident is inside a house, 1 when outside. */
+export const liveVisibility = new Map<string, number>();
+const SCALE = 1.6;
 
 /** Where a resident should stand, given what they are doing. */
 function destination(resident: ResidentRow, slot: number, partner: ResidentRow | undefined, partnerSlot: number): { spot: Vec2; inside: boolean } {
@@ -59,11 +60,25 @@ export function Resident({ resident, slot }: { resident: ResidentRow; slot: numb
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh) {
         mesh.castShadow = true;
-        mesh.material = softenMaterial((mesh.material as THREE.Material).clone());
+        const material = softenMaterial((mesh.material as THREE.Material).clone()) as THREE.MeshStandardMaterial;
+        // A little self-light at night, so residents stay readable in the dark.
+        material.emissiveMap = material.map;
+        material.emissive = new THREE.Color('#ffffff');
+        material.emissiveIntensity = 0;
+        mesh.material = material;
       }
     });
     return scene;
   }, [gltf]);
+  const materials = useMemo(() => {
+    const list: THREE.MeshStandardMaterial[] = [];
+    model.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh) list.push(mesh.material as THREE.MeshStandardMaterial);
+    });
+    return list;
+  }, [model]);
+  const blob = useRef<THREE.MeshBasicMaterial>(null);
   const group = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const { actions } = useAnimations(gltf.animations, body);
@@ -71,8 +86,6 @@ export function Resident({ resident, slot }: { resident: ResidentRow; slot: numb
   const partner = useTown((s) => (resident.talkingTo ? s.residents[resident.talkingTo] : undefined));
   const partnerSlot = useTown((s) => Object.keys(s.residents).sort().indexOf(resident.talkingTo ?? ''));
   const selected = useTown((s) => s.selectedId === resident.$id);
-  const hovered = useTown((s) => s.hoveredId === resident.$id);
-  const bubble = useSpeech((s) => s.bubbles[resident.$id]);
 
   // Movement state lives in refs, so the frame loop never re-renders React.
   const pos = useRef(new THREE.Vector3());
@@ -142,6 +155,14 @@ export function Resident({ resident, slot }: { resident: ResidentRow; slot: numb
     visible.current = THREE.MathUtils.damp(visible.current, goInside ? 0 : 1, 6, step);
     g.position.copy(pos.current);
     livePositions.set(resident.$id, pos.current);
+    liveVisibility.set(resident.$id, visible.current);
+    const night = useSky.getState().night;
+    for (const m of materials) m.emissiveIntensity = night * 0.42;
+    if (blob.current) {
+      // A soft shadow by day, a warm glow by night.
+      blob.current.color.set(night > 0.5 ? '#ffcf7a' : '#1d2a12');
+      blob.current.opacity = night > 0.5 ? 0.35 * night : 0.28;
+    }
     g.scale.setScalar(Math.max(visible.current, 0.001) * SCALE);
     g.visible = visible.current > 0.02;
     if (body.current) {
@@ -151,7 +172,6 @@ export function Resident({ resident, slot }: { resident: ResidentRow; slot: numb
     }
   });
 
-  const showTag = hovered || selected;
   return (
     <group ref={group}>
       <group ref={body}>
@@ -177,25 +197,11 @@ export function Resident({ resident, slot }: { resident: ResidentRow; slot: numb
       >
         <cylinderGeometry args={[0.32, 0.32, 0.8, 8]} />
       </mesh>
+      <mesh rotation-x={-Math.PI / 2} position-y={0.025}>
+        <circleGeometry args={[0.32, 24]} />
+        <meshBasicMaterial ref={blob} transparent depthWrite={false} toneMapped={false} />
+      </mesh>
       {selected && <SelectionRing color={resident.color} />}
-      <Html position={[0, 0.98, 0]} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
-        <div className="world-label">
-          {bubble ? (
-            <div className="bubble" key={bubble.id} style={{ ['--accent' as string]: resident.color }}>
-              {bubble.emote && <span className="bubble-emote"><EmoteIcon emote={bubble.emote} size={18} /></span>}
-              <span>{bubble.text}</span>
-            </div>
-          ) : resident.emote && resident.activity === 'react' ? (
-            <div className="emote-pop"><EmoteIcon emote={resident.emote} /></div>
-          ) : null}
-          {showTag && !bubble && (
-            <div className="name-tag" style={{ ['--accent' as string]: resident.color }}>
-              {resident.name.split(' ')[0]}
-              <span>{resident.job}</span>
-            </div>
-          )}
-        </div>
-      </Html>
     </group>
   );
 }

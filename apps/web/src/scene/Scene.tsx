@@ -1,5 +1,6 @@
 // The game world: one full-screen WebGL canvas.
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { layoutLabels } from '../hud/Bubbles';
 import { Suspense } from 'react';
 import * as THREE from 'three';
 import { townActions } from '../lib/store';
@@ -8,7 +9,13 @@ import { CameraRig } from './CameraRig';
 import { Clouds } from './Clouds';
 import { DayNight } from './DayNight';
 import { Island } from './Island';
-import { Residents } from './Resident';
+import { liveVisibility, livePositions, Residents } from './Resident';
+
+/** Places the screen-space labels after every frame. */
+function LabelDriver() {
+  useFrame(({ camera, size }) => layoutLabels(camera, size.width, size.height, livePositions, liveVisibility));
+  return null;
+}
 
 export function Scene({ backdrop }: { backdrop: React.RefObject<HTMLDivElement | null> }) {
   return (
@@ -25,12 +32,13 @@ export function Scene({ backdrop }: { backdrop: React.RefObject<HTMLDivElement |
       }}
     >
       <CameraRig />
+      <LabelDriver />
       <DayNight backdrop={backdrop} />
       <Suspense fallback={null}>
         <Island />
         <Buildings />
         <Residents />
-        <Clouds />
+        {!(import.meta.env.DEV && new URLSearchParams(location.search).has('render')) && <Clouds />}
       </Suspense>
     </Canvas>
   );

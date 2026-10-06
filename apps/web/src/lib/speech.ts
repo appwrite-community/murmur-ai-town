@@ -28,7 +28,7 @@ export function playConversation(lines: Line[], delayMs = 0) {
   lines.forEach((line, i) => {
     const timer = setTimeout(() => {
       timers.delete(timer);
-      say(line.speaker, line.text, 4600, line.emote ?? null);
+      say(line.speaker, line.text, 4000, line.emote ?? null);
     }, delayMs + i * 4200);
     timers.add(timer);
   });

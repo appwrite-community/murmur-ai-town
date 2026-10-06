@@ -29,7 +29,7 @@ export function DayNight({ backdrop }: { backdrop: React.RefObject<HTMLDivElemen
       hemi.current.intensity = sky.hemi;
       hemi.current.color.set(sky.top).lerp(new THREE.Color('#ffffff'), 0.55);
     }
-    if (backdrop.current) {
+    if (backdrop.current && !document.querySelector('.render-mode')) {
       backdrop.current.style.background = `radial-gradient(120% 90% at 50% 100%, ${sky.bottom} 0%, ${sky.top} 75%)`;
     }
     if (Math.abs(minute - lastMinute.current) >= 0.25) {

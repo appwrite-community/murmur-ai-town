@@ -115,10 +115,10 @@ export function Crier() {
             {list.length === 0 && <li className="feed-system">The town is quiet. News arrives every tick.</li>}
             {list.map((e) => <EventItem key={e.$id} event={e} residents={residents} />)}
           </ul>
-          <label className="toggle">
-            <input type="checkbox" checked={walks} onChange={(e) => setWalks(e.target.checked)} />
-            <span className="toggle-box" /> Show walks
-          </label>
+          <button className={`switch ${walks ? 'on' : ''}`} role="switch" aria-checked={walks} onClick={() => setWalks((w) => !w)}>
+            <span className="switch-track"><span className="switch-knob" /></span>
+            Show walks
+          </button>
         </>
       ) : (
         <ul className="feed rumors">

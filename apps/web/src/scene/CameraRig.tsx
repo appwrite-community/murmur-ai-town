@@ -21,6 +21,8 @@ export const cameraState = {
   follow: null as (() => THREE.Vector3 | undefined) | null,
 };
 
+if (import.meta.env.DEV) (window as unknown as { __murmurCamera: typeof cameraState }).__murmurCamera = cameraState;
+
 export function rotateCamera(direction: 1 | -1) {
   cameraState.yawStep += direction;
 }
@@ -44,7 +46,7 @@ export function CameraRig() {
 
   useEffect(() => {
     // Fit the whole island on first load, whatever the window size.
-    const fit = Math.min(size.width / (ISLAND.rx * 2.5), size.height / (ISLAND.rz * 1.9)) * 1.75;
+    const fit = Math.min(size.width / (ISLAND.rx * 2.5), size.height / (ISLAND.rz * 1.9)) * 2.1;
     cameraState.zoom = cameraState.zoomGoal = THREE.MathUtils.clamp(fit, MIN_ZOOM, MAX_ZOOM);
     // Only on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
