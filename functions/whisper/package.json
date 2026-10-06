@@ -1,0 +1,12 @@
+{
+  "name": "whisper",
+  "private": true,
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "node-appwrite": "29.0.0"
+  }
+}

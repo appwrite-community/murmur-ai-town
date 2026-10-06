@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.local
+*.tsbuildinfo
+.DS_Store
+scripts/photos/raw/

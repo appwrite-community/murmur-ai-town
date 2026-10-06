@@ -1,0 +1,19 @@
+{
+  "name": "scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "provision": "tsx --env-file-if-exists=../.env provision.ts",
+    "seed": "tsx --env-file-if-exists=../.env seed.ts",
+    "town": "tsx --env-file-if-exists=../.env town.ts",
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "node-appwrite": "29.0.0",
+    "tar": "7.5.22"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "tsx": "4.23.15"
+  }
+}

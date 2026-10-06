@@ -1,0 +1,184 @@
+{
+  "places": [
+    {
+      "id": "square",
+      "name": "Fountain Square",
+      "kind": "outdoor",
+      "description": "The heart of town: a fountain, market stalls, and a bench under the lanterns."
+    },
+    {
+      "id": "town_hall",
+      "name": "Town Hall",
+      "kind": "work",
+      "description": "Where the mayor keeps the town ledger and the notice board."
+    },
+    {
+      "id": "bakery",
+      "name": "Crumb & Co. Bakery",
+      "kind": "work",
+      "description": "Warm bread from dawn. The best place in town to hear news."
+    },
+    {
+      "id": "cafe",
+      "name": "The Kettle Cafe",
+      "kind": "work",
+      "description": "Tea, coffee, and a terrace with three wobbly tables."
+    },
+    {
+      "id": "library",
+      "name": "Lantern Library",
+      "kind": "work",
+      "description": "Quiet shelves, town records, and a reading nook."
+    },
+    {
+      "id": "workshop",
+      "name": "Pine Workshop",
+      "kind": "work",
+      "description": "Sawdust, half-built chairs, and the smell of pine."
+    },
+    {
+      "id": "pond",
+      "name": "Willow Pond",
+      "kind": "outdoor",
+      "description": "A calm pond with a little dock. Good for fishing and painting."
+    },
+    {
+      "id": "garden",
+      "name": "Community Garden",
+      "kind": "outdoor",
+      "description": "Pumpkins, carrots, and a scarecrow nobody admits to building."
+    },
+    {
+      "id": "honey_cottage",
+      "name": "Honey Cottage",
+      "kind": "home",
+      "description": "A yellow cottage near the bakery."
+    },
+    {
+      "id": "ivy_cottage",
+      "name": "Ivy Cottage",
+      "kind": "home",
+      "description": "A cottage covered in ivy, west of the library."
+    },
+    {
+      "id": "fern_cottage",
+      "name": "Fern Cottage",
+      "kind": "home",
+      "description": "A cottage by the pond."
+    },
+    {
+      "id": "oak_cottage",
+      "name": "Oak Cottage",
+      "kind": "home",
+      "description": "A sturdy cottage next to the workshop."
+    },
+    {
+      "id": "maple_cottage",
+      "name": "Maple Cottage",
+      "kind": "home",
+      "description": "A red-roofed cottage past the garden."
+    }
+  ],
+  "residents": [
+    {
+      "id": "bea",
+      "name": "Bea Crumb",
+      "job": "Baker",
+      "workplace": "bakery",
+      "home": "honey_cottage",
+      "character": "character-female-b",
+      "color": "#f2a541",
+      "persona": "Warm, chatty, up before dawn. Loves feeding people and loves news even more. Repeats what she hears, a little improved."
+    },
+    {
+      "id": "otto",
+      "name": "Otto Pembrook",
+      "job": "Mayor",
+      "workplace": "town_hall",
+      "home": "maple_cottage",
+      "character": "character-male-d",
+      "color": "#7b6cd9",
+      "persona": "Pompous but kind. Worries about the town's reputation. Hates surprises and loves speeches."
+    },
+    {
+      "id": "lin",
+      "name": "Lin Ashby",
+      "job": "Librarian",
+      "workplace": "library",
+      "home": "ivy_cottage",
+      "character": "character-female-a",
+      "color": "#4aa3a2",
+      "persona": "Quiet and skeptical. Asks for sources. Rarely repeats a rumor unless she believes it."
+    },
+    {
+      "id": "rafa",
+      "name": "Rafa Moss",
+      "job": "Cafe owner",
+      "workplace": "cafe",
+      "home": "oak_cottage",
+      "character": "character-male-a",
+      "color": "#c8553d",
+      "persona": "Talks to every customer. Remembers everyone's order and everyone's secrets. Dramatic storyteller."
+    },
+    {
+      "id": "juniper",
+      "name": "Juniper Vale",
+      "job": "Gardener",
+      "workplace": "garden",
+      "home": "fern_cottage",
+      "character": "character-female-f",
+      "color": "#6ab04c",
+      "persona": "Dreamy, gentle, talks to her pumpkins. Believes the best about everyone."
+    },
+    {
+      "id": "tobias",
+      "name": "Tobias Fenn",
+      "job": "Carpenter",
+      "workplace": "workshop",
+      "home": "oak_cottage",
+      "character": "character-male-b",
+      "color": "#8d5a3b",
+      "persona": "Gruff, loyal, few words. Defends his friends and distrusts gossip."
+    },
+    {
+      "id": "mae",
+      "name": "Mae Hollis",
+      "job": "Postmaster",
+      "workplace": "square",
+      "home": "honey_cottage",
+      "character": "character-female-d",
+      "color": "#e8505b",
+      "persona": "Walks the whole town every day with the post. Knows everyone and passes news along with the letters."
+    },
+    {
+      "id": "wren",
+      "name": "Wren Calloway",
+      "job": "Painter",
+      "workplace": "pond",
+      "home": "ivy_cottage",
+      "character": "character-female-e",
+      "color": "#d16ba5",
+      "persona": "Romantic and imaginative. Paints by the pond. Turns every rumor into a love story."
+    },
+    {
+      "id": "ike",
+      "name": "Ike Bramble",
+      "job": "Fisher",
+      "workplace": "pond",
+      "home": "fern_cottage",
+      "character": "character-male-e",
+      "color": "#3c6e9f",
+      "persona": "Tells tall tales about the fish that got away. Easily convinced, easily excited."
+    },
+    {
+      "id": "dot",
+      "name": "Dot Pennywhistle",
+      "job": "Retired teacher",
+      "workplace": "square",
+      "home": "maple_cottage",
+      "character": "character-female-c",
+      "color": "#9c88ff",
+      "persona": "Sits on the square bench and watches everything. Nosy, sharp, and fond of correcting people."
+    }
+  ]
+}
