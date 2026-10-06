@@ -77,7 +77,14 @@ export function conversationPrompt(ctx, conversations) {
   const byId = new Map(ctx.residents.map((r) => [r.$id, r]));
   const blocks = conversations.map((c, index) => {
     const people = c.residents.map((id) => describeResident(byId.get(id), ctx)).join('\n');
-    return `Conversation c${index} at ${c.place}:\n${people}`;
+    // Tell the model which rumors each side could pass on, so gossip can travel.
+    const news = c.residents.map((speaker) => {
+      const listener = c.residents.find((id) => id !== speaker);
+      const heard = new Set((ctx.rumorsByResident.get(listener) ?? []).map((r) => r.rumorId));
+      const fresh = (ctx.rumorsByResident.get(speaker) ?? []).filter((r) => !heard.has(r.rumorId)).map((r) => r.rumorId);
+      return fresh.length ? `${speaker} knows rumors that ${listener} has not heard: ${fresh.join(', ')}.` : '';
+    }).filter(Boolean).join(' ');
+    return `Conversation c${index} at ${c.place}:\n${people}${news ? `\n${news}` : ''}`;
   });
   const user = `It is ${clockLabel(ctx.day, ctx.minuteOfDay)}. Write these conversations.
 
@@ -85,7 +92,7 @@ ${blocks.join('\n\n')}
 
 For each conversation:
 - lines: 2 to 4 short lines (under 80 characters each), alternating speakers, in character.
-- shared: rumors a speaker passes on in these lines. Use only rumor IDs the speaker knows. retelling is the rumor as the listener now remembers it (it may change a little in the retelling). Skeptical residents may keep a rumor to themselves.
+- shared: rumors a speaker passes on in these lines. Use only rumor IDs the speaker knows. Chatty residents usually pass on a rumor the listener has not heard; skeptical residents may keep it to themselves. retelling is the rumor as the listener now remembers it, in a few words of their own.
 - memories: one sentence per participant about what they will remember.
 - feelings: how much each participant now likes the other, from -10 to 10.`;
 
