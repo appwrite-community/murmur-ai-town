@@ -3,7 +3,8 @@ import type { FunctionConfig } from '../schema.ts';
 
 /**
  * The full settings of a function. A paused function is disabled and has no
- * schedule, so it never calls the model.
+ * schedule and no events: Appwrite still runs a disabled function when one of
+ * its events fires, so the events are removed too.
  */
 export function functionSettings(config: FunctionConfig, { paused }: { paused: boolean }) {
   return {
@@ -11,7 +12,7 @@ export function functionSettings(config: FunctionConfig, { paused }: { paused: b
     name: config.name,
     runtime: Runtime.Node22,
     execute: [],
-    events: config.events,
+    events: paused ? [] : config.events,
     schedule: paused ? '' : config.schedule,
     timeout: config.timeout,
     scopes: config.scopes,
