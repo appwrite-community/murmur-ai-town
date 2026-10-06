@@ -92,6 +92,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hearts { display: inline-flex; gap: 2px; }
 .card-actions { display: flex; gap: 8px; margin-top: 16px; }
 .card-actions .btn { flex: 1; }
+.card-note { margin: 10px 2px 0; font-weight: 800; font-size: 12.5px; color: var(--ink-soft); text-align: center; }
 
 /* Buttons */
 .btn {

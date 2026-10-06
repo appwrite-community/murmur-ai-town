@@ -31,7 +31,7 @@ async function tick({ req, res, log, error }) {
 
   // 1. Every resident gets one action from the closed set.
   const plan = await completeJson({ ...planPrompt(ctx), log });
-  const { planned, rejected } = validatePlan(plan.actions, ctx);
+  const { planned, rejected } = validatePlan(plan?.actions, ctx);
   const conversations = pairConversations(planned, ctx.residents);
 
   // 2. Residents who meet talk, and may pass on rumors they know.
@@ -39,9 +39,10 @@ async function tick({ req, res, log, error }) {
   let knowledge = new Map();
   if (conversations.length > 0) {
     const raw = await completeJson({ ...conversationPrompt(ctx, conversations), log });
+    const written = Array.isArray(raw?.conversations) ? raw.conversations : [];
     // Check shared rumors against every memory in the table, not only the ones in the prompt.
-    knowledge = await loadRumorKnowledge(tablesDB, sharedRumorIds(raw.conversations));
-    const checked = validateConversations(raw.conversations, conversations, knowledge);
+    knowledge = await loadRumorKnowledge(tablesDB, sharedRumorIds(written));
+    const checked = validateConversations(written, conversations, knowledge);
     talks = checked.results;
     rejected.push(...checked.rejected);
   }

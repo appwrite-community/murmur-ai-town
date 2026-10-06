@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { loadResidentDetails } from '../lib/appwrite';
-import { townActions, useTown } from '../lib/store';
+import { townActions, townIsResting, useTown } from '../lib/store';
 import type { Memory, Relationship, Resident } from '../lib/types';
 import { cameraState } from '../scene/CameraRig';
 import { livePositions } from '../scene/Resident';
@@ -45,6 +45,12 @@ export function ResidentCard() {
   const latest = useTown((s) => s.events.find((e) => s.selectedId && e.residentIds?.includes(s.selectedId))?.$id);
   const [details, setDetails] = useState<{ memories: Memory[]; relationships: Relationship[] } | null>(null);
   const [following, setFollowing] = useState(false);
+  // While the town rests, nobody answers whispers, so the button is disabled.
+  const [resting, setResting] = useState(townIsResting());
+  useEffect(() => {
+    const t = setInterval(() => setResting(townIsResting()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -118,13 +124,18 @@ export function ResidentCard() {
       )}
 
       <div className="card-actions">
-        <button className="btn btn-pink" onClick={() => townActions.openWhisper(true)}>
+        <button
+          className="btn btn-pink"
+          disabled={resting}
+          onClick={() => townActions.openWhisper(true)}
+        >
           <WhisperIcon size={20} /> Whisper
         </button>
         <button className={`btn btn-cream ${following ? 'pressed' : ''}`} onClick={() => setFollowing((f) => !f)}>
           <EyeIcon /> {following ? 'Following' : 'Follow'}
         </button>
       </div>
+      {resting && <p className="card-note">The town is resting. Whispers open again when it wakes up.</p>}
     </section>
   );
 }

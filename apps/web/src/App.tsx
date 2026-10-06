@@ -15,27 +15,36 @@ export function App() {
     (async () => {
       try {
         const visitorId = await ensureVisitor();
-        // Subscribe first, so no tick is missed between loading and listening.
-        unsubscribe = await subscribeToTown({
-          world: townActions.world,
-          resident: (row) => {
-            const before = useTown.getState().residents[row.$id];
-            townActions.resident(row);
-            if (row.line && row.activity !== 'talk' && row.line !== before?.line) {
-              // Spread lines over the tick, so a few residents speak at a time.
-              const line = row.line;
-              setTimeout(() => say(row.$id, line, 5200, row.emote), 2000 + Math.random() * 38_000);
-            }
-          },
-          event: (row) => {
-            townActions.event(row);
-            if ((row.kind === 'talk' || row.kind === 'whisper') && row.lines) {
-              playConversation(JSON.parse(row.lines) as Line[], row.kind === 'talk' ? 1200 : 0);
-            }
-          },
-          rumor: townActions.rumor,
-          whisper: townActions.whisper,
-        });
+        // Open the subscription before loading, and merge anything that arrives first.
+        // Without Realtime the town still loads, it just does not move.
+        try {
+          unsubscribe = await subscribeToTown({
+            world: townActions.world,
+            resident: (row) => {
+              const before = useTown.getState().residents[row.$id];
+              townActions.resident(row);
+              if (row.line && row.activity !== 'talk' && row.line !== before?.line) {
+                // Spread lines over the tick, so a few residents speak at a time.
+                const line = row.line;
+                setTimeout(() => say(row.$id, line, 5200, row.emote), 2000 + Math.random() * 38_000);
+              }
+            },
+            event: (row) => {
+              townActions.event(row);
+              if ((row.kind === 'talk' || row.kind === 'whisper') && row.lines) {
+                playConversation(JSON.parse(row.lines) as Line[], row.kind === 'talk' ? 1200 : 0);
+              }
+            },
+            rumor: townActions.rumor,
+            whisper: townActions.whisper,
+          });
+        } catch (err) {
+          console.warn('Realtime is unavailable', err);
+        }
+        if (cancelled) {
+          void unsubscribe();
+          return;
+        }
         const data = await loadTown();
         if (!cancelled) townActions.loaded(data, visitorId);
       } catch (err) {

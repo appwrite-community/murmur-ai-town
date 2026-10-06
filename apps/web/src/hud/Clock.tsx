@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { TICK_SECONDS, useTown } from '../lib/store';
+import { TICK_SECONDS, townIsResting, useTown } from '../lib/store';
 import { useSky } from '../scene/sky';
 import { MoonIcon, SunIcon } from './icons';
 
@@ -27,7 +27,7 @@ export function Clock() {
   const m = Math.floor(minute % 60);
   const label = `${String(h).padStart(2, '0')}:${String(m - (m % 5)).padStart(2, '0')}`;
   const progress = Math.min((now - tickArrivedAt) / (TICK_SECONDS * 1000), 1);
-  const late = (now - tickArrivedAt) / 1000 > TICK_SECONDS * 2.5;
+  const late = townIsResting(now);
   const dial = (minute / 1440) * 360;
 
   return (

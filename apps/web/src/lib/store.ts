@@ -111,3 +111,8 @@ export function displayMinute(world: World | null, tickArrivedAt: number, now = 
   const progress = Math.min(Math.max((now - tickArrivedAt) / (TICK_SECONDS * 1000), 0), 1);
   return (world.minuteOfDay + progress * TICK_MINUTES) % 1440;
 }
+
+/** True when no tick has arrived for a while, for example when the town is paused. */
+export function townIsResting(now = performance.now()) {
+  return (now - useTown.getState().tickArrivedAt) / 1000 > TICK_SECONDS * 2.5;
+}

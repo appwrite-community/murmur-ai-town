@@ -46,7 +46,7 @@ async function takeSlot(tablesDB, owner, count) {
 
 /** Whisper text becomes public, so links, emails, handles, and phone numbers are refused outright. */
 function looksLikeContactInfo(text) {
-  return /(https?:\/\/|www\.|\b[\w.-]+\.(com|net|org|io|app|dev|xyz)\b|@\w|\+?\d[\d\s().-]{7,}\d)/i.test(text);
+  return /(https?:\/\/|www\.|\b[\w.-]+\.(com|net|org|io|app|dev|xyz)\b|@\w|\+\d[\d\s().-]{6,}\d|\b\d{3}[-. ]\d{3}[-. ]\d{4}\b)/i.test(text);
 }
 
 async function reactTo(resident, text, log) {
@@ -87,7 +87,7 @@ export default async ({ req, res, log, error }) => {
   const close = (data) =>
     tablesDB.updateRow({ databaseId: DATABASE_ID, tableId: 'whispers', rowId: whisper.$id, data: { visitorId: visitorId || null, ...data }, permissions });
 
-  // Cheap checks first, before the whisper takes a slot. The whisper ID becomes the
+  // Basic checks first, before the whisper takes a slot. The whisper ID becomes the
   // rumor ID, so only IDs that Appwrite generates are accepted.
   const text = cleanText(whisper.text, 140);
   const resident = await tablesDB
@@ -98,16 +98,16 @@ export default async ({ req, res, log, error }) => {
     return res.json({ status: 'rejected' });
   }
 
-  // A slot of the visitor first, then a slot of the whole town.
-  const visitorSlot = await takeSlot(tablesDB, visitorId, WHISPERS_PER_WINDOW);
-  const townSlot = visitorSlot && (await takeSlot(tablesDB, 'town', TOWN_WHISPERS_PER_WINDOW));
-  if (!townSlot) {
-    await close({ status: 'rate_limited', reply: null, emote: null });
-    log(`Whisper ${whisper.$id}: rate limited`);
-    return res.json({ status: 'rate_limited' });
-  }
-
   try {
+    // A slot of the visitor first, then a slot of the whole town.
+    const visitorSlot = await takeSlot(tablesDB, visitorId, WHISPERS_PER_WINDOW);
+    const townSlot = visitorSlot && (await takeSlot(tablesDB, 'town', TOWN_WHISPERS_PER_WINDOW));
+    if (!townSlot) {
+      await close({ status: 'rate_limited', reply: null, emote: null });
+      log(`Whisper ${whisper.$id}: rate limited`);
+      return res.json({ status: 'rate_limited' });
+    }
+
     const reaction = await reactTo(resident, text, log);
     const reply = cleanText(reaction.reply, 100);
     const emote = EMOTES.includes(reaction.emote) ? reaction.emote : 'thinking';

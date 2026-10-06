@@ -11,12 +11,13 @@ async function all(tablesDB, tableId, queries = [], limit = 500) {
 }
 
 export async function loadTown(tablesDB) {
+  // TablesDB counts every returned row as a read, so each query asks only for what the prompt uses.
   const [world, places, residents, recent, rumorMemories, relationships] = await Promise.all([
     tablesDB.getRow({ databaseId: DATABASE_ID, tableId: 'world', rowId: 'world' }),
     all(tablesDB, 'places'),
     all(tablesDB, 'residents'),
-    all(tablesDB, 'memories', [Query.orderDesc('tick'), Query.orderDesc('$sequence')], 200),
-    all(tablesDB, 'memories', [Query.isNotNull('rumorId'), Query.orderDesc('tick'), Query.orderDesc('$sequence')]),
+    all(tablesDB, 'memories', [Query.orderDesc('tick'), Query.orderDesc('$sequence')], 60),
+    all(tablesDB, 'memories', [Query.isNotNull('rumorId'), Query.orderDesc('tick'), Query.orderDesc('$sequence')], 100),
     all(tablesDB, 'relationships'),
   ]);
 
