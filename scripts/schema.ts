@@ -1,5 +1,5 @@
 // Every Appwrite resource Murmur uses, in one place.
-import { Permission, Role } from 'node-appwrite';
+import { Permission, ProjectKeyScopes, Role } from 'node-appwrite';
 
 export type Column =
   | { key: string; type: 'varchar'; size: number; required: boolean; array?: boolean }
@@ -193,7 +193,7 @@ export type FunctionConfig = {
   events: string[];
   schedule: string;
   timeout: number;
-  scopes: string[];
+  scopes: ProjectKeyScopes[];
 };
 
 export const FUNCTIONS: FunctionConfig[] = [
@@ -204,7 +204,7 @@ export const FUNCTIONS: FunctionConfig[] = [
     events: [],
     schedule: '* * * * *',
     timeout: 120,
-    scopes: ['rows.read', 'rows.write'],
+    scopes: [ProjectKeyScopes.RowsRead, ProjectKeyScopes.RowsWrite],
   },
   {
     id: 'whisper',
@@ -213,7 +213,7 @@ export const FUNCTIONS: FunctionConfig[] = [
     events: [`databases.${DATABASE.id}.tables.whispers.rows.*.create`],
     schedule: '',
     timeout: 60,
-    scopes: ['rows.read', 'rows.write'],
+    scopes: [ProjectKeyScopes.RowsRead, ProjectKeyScopes.RowsWrite],
   },
 ];
 

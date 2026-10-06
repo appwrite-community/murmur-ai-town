@@ -19,7 +19,7 @@ async function step() {
   const current = await functions.get({ functionId: tick.id });
   if (!current.enabled) await functions.update({ ...functionSettings(tick, { paused: true }), enabled: true });
   try {
-    const execution = await functions.createExecution({ functionId: tick.id, async: false, method: ExecutionMethod.POST, path: '/' });
+    const execution = await functions.createExecution({ functionId: tick.id, async: false, method: ExecutionMethod.POST, xpath: '/' });
     console.log(`${execution.status} in ${execution.duration.toFixed(1)} s: ${execution.responseBody}`);
     if (execution.errors) console.log(execution.errors);
   } finally {

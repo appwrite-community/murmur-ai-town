@@ -161,7 +161,8 @@ async function provisionSite() {
   if (!created) await sites.update(settings);
 
   const { variables } = await sites.listVariables({ siteId: SITE.id });
-  for (const [key, value] of [['VITE_APPWRITE_ENDPOINT', env.endpoint], ['VITE_APPWRITE_PROJECT_ID', env.projectId]]) {
+  const siteVariables: [string, string][] = [['VITE_APPWRITE_ENDPOINT', env.endpoint], ['VITE_APPWRITE_PROJECT_ID', env.projectId]];
+  for (const [key, value] of siteVariables) {
     const existing = variables.find((variable) => variable.key === key);
     if (existing) await sites.updateVariable({ siteId: SITE.id, variableId: existing.$id, key, value, secret: false });
     else await sites.createVariable({ siteId: SITE.id, variableId: ID.unique(), key, value, secret: false });
