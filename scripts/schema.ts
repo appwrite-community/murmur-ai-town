@@ -210,7 +210,7 @@ export const FUNCTIONS: FunctionConfig[] = [
     id: 'whisper',
     name: 'Whisper',
     dir: 'functions/whisper',
-    events: [`databases.${DATABASE.id}.tables.whispers.rows.*.create`],
+    events: [`tablesdb.${DATABASE.id}.tables.whispers.rows.*.create`],
     schedule: '',
     timeout: 60,
     scopes: [ProjectKeyScopes.RowsRead, ProjectKeyScopes.RowsWrite],
