@@ -8,7 +8,7 @@ function op(action, tableId, rowId, data) {
   return { action, databaseId: DATABASE_ID, tableId, rowId, data };
 }
 
-export function buildOperations({ ctx, next, planned, talks, stats }) {
+export function buildOperations({ ctx, next, planned, talks, knowledge = new Map(), stats }) {
   const byId = new Map(ctx.residents.map((r) => [r.$id, r]));
   const placeName = (id) => ctx.places.find((p) => p.$id === id)?.name ?? id;
   const name = (id) => byId.get(id).name.split(' ')[0];
@@ -81,8 +81,7 @@ export function buildOperations({ ctx, next, planned, talks, stats }) {
   const carriers = new Map();
   for (const talk of talks) {
     for (const share of talk.shared) {
-      const known = [...ctx.rumorsByResident].filter(([, list]) => list.some((r) => r.rumorId === share.rumorId)).length;
-      carriers.set(share.rumorId, (carriers.get(share.rumorId) ?? known) + 1);
+      carriers.set(share.rumorId, (carriers.get(share.rumorId) ?? knowledge.get(share.rumorId)?.size ?? 0) + 1);
     }
   }
   for (const [rumorId, count] of carriers) story.push(op('update', 'rumors', rumorId, { carriers: count }));
@@ -99,6 +98,8 @@ export function buildOperations({ ctx, next, planned, talks, stats }) {
     }
   }
 
+  // At most 3 conversations with 2 shared rumors each keep the tick far below the limit.
+  if (core.length + story.length > MAX_OPERATIONS) throw new Error(`Tick needs ${core.length + story.length} operations`);
   const room = MAX_OPERATIONS - core.length - story.length;
   return [...core, ...story, ...extras.slice(0, Math.max(0, room))];
 }

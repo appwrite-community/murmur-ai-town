@@ -3,9 +3,10 @@ import { Query } from 'node-appwrite';
 
 export const DATABASE_ID = 'town';
 export const TICK_MINUTES = 30;
+const RUMORS_IN_PROMPT = 3;
 
-async function all(tablesDB, tableId, queries = []) {
-  const { rows } = await tablesDB.listRows({ databaseId: DATABASE_ID, tableId, queries: [...queries, Query.limit(500)] });
+async function all(tablesDB, tableId, queries = [], limit = 500) {
+  const { rows } = await tablesDB.listRows({ databaseId: DATABASE_ID, tableId, queries: [...queries, Query.limit(limit)] });
   return rows;
 }
 
@@ -14,8 +15,8 @@ export async function loadTown(tablesDB) {
     tablesDB.getRow({ databaseId: DATABASE_ID, tableId: 'world', rowId: 'world' }),
     all(tablesDB, 'places'),
     all(tablesDB, 'residents'),
-    all(tablesDB, 'memories', [Query.orderDesc('tick'), Query.orderDesc('$sequence'), Query.limit(200)]),
-    all(tablesDB, 'memories', [Query.isNotNull('rumorId'), Query.orderAsc('tick')]),
+    all(tablesDB, 'memories', [Query.orderDesc('tick'), Query.orderDesc('$sequence')], 200),
+    all(tablesDB, 'memories', [Query.isNotNull('rumorId'), Query.orderDesc('tick'), Query.orderDesc('$sequence')]),
     all(tablesDB, 'relationships'),
   ]);
 
@@ -26,14 +27,13 @@ export async function loadTown(tablesDB) {
     memoriesByResident.set(memory.residentId, list);
   }
 
-  // The latest version of each rumor a resident knows.
+  // The newest rumors each resident knows, newest first. Only these go into the prompt.
   const rumorsByResident = new Map();
   for (const memory of rumorMemories) {
     const list = rumorsByResident.get(memory.residentId) ?? [];
-    const index = list.findIndex((r) => r.rumorId === memory.rumorId);
-    const entry = { rumorId: memory.rumorId, text: memory.text };
-    if (index >= 0) list[index] = entry;
-    else list.push(entry);
+    if (list.length < RUMORS_IN_PROMPT && !list.some((r) => r.rumorId === memory.rumorId)) {
+      list.push({ rumorId: memory.rumorId, text: memory.text });
+    }
     rumorsByResident.set(memory.residentId, list);
   }
 
@@ -70,4 +70,16 @@ export function nextClock(world) {
     minuteOfDay: total % 1440,
     day: world.day + Math.floor(total / 1440),
   };
+}
+
+/**
+ * Who knows each of the given rumors, from every memory in the table.
+ * The tick checks shared rumors against this, not against the prompt.
+ */
+export async function loadRumorKnowledge(tablesDB, rumorIds) {
+  const knowledge = new Map(rumorIds.map((id) => [id, new Set()]));
+  if (rumorIds.length === 0) return knowledge;
+  const rows = await all(tablesDB, 'memories', [Query.equal('rumorId', rumorIds)], 1000);
+  for (const memory of rows) knowledge.get(memory.rumorId)?.add(memory.residentId);
+  return knowledge;
 }

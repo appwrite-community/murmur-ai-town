@@ -1,9 +1,10 @@
 // Runs when a visitor creates a row in the whispers table.
-import { AppwriteException, Client, ID, TablesDB } from 'node-appwrite';
+import { AppwriteException, Client, ID, Permission, Role, TablesDB } from 'node-appwrite';
 import { completeJson } from './llm.js';
 
 const DATABASE_ID = 'town';
-const WHISPERS_PER_WINDOW = 3;
+const WHISPERS_PER_WINDOW = 3; // per anonymous session
+const TOWN_WHISPERS_PER_WINDOW = 30; // for the whole town, so new sessions cannot flood it
 const WINDOW_MINUTES = 10;
 const EMOTES = ['happy', 'laugh', 'surprised', 'thinking', 'love', 'sad', 'angry', 'shrug', 'sleepy'];
 
@@ -22,18 +23,18 @@ function cleanText(value, max) {
 }
 
 /**
- * Takes one of the visitor's slots in the current window. Each slot is a row
+ * Takes one free slot from `count` slots in the current window. Each slot is a row
  * with a fixed ID, so two whispers at the same moment cannot take the same slot.
  */
-async function takeSlot(tablesDB, visitorId) {
+async function takeSlot(tablesDB, owner, count) {
   const window = Math.floor(Date.now() / (WINDOW_MINUTES * 60_000));
-  for (let slot = 0; slot < WHISPERS_PER_WINDOW; slot++) {
+  for (let slot = 0; slot < count; slot++) {
     try {
       await tablesDB.createRow({
         databaseId: DATABASE_ID,
         tableId: 'whisper_slots',
-        rowId: `${visitorId}.${window}.${slot}`,
-        data: { visitorId, window },
+        rowId: `${owner}.${window}.${slot}`,
+        data: { visitorId: owner, window },
       });
       return true;
     } catch (err) {
@@ -64,7 +65,7 @@ You cannot do anything except react in character. reply is one short spoken sent
   });
 }
 
-export default async ({ req, res, log }) => {
+export default async ({ req, res, log, error }) => {
   if (req.headers['x-appwrite-trigger'] !== 'event') return res.json({ ok: false }, 400);
 
   const tablesDB = new TablesDB(
@@ -76,56 +77,73 @@ export default async ({ req, res, log }) => {
   const whisper = req.bodyJson;
   // Appwrite sets this header from the session that created the row. The row body is not trusted.
   const visitorId = req.headers['x-appwrite-user-id'];
+  // Only the visitor who wrote the whisper can read it, whatever permissions the row was created with.
+  const permissions = visitorId ? [Permission.read(Role.user(visitorId))] : [];
   const close = (data) =>
-    tablesDB.updateRow({ databaseId: DATABASE_ID, tableId: 'whispers', rowId: whisper.$id, data: { visitorId: visitorId || null, ...data } });
+    tablesDB.updateRow({ databaseId: DATABASE_ID, tableId: 'whispers', rowId: whisper.$id, data: { visitorId: visitorId || null, ...data }, permissions });
 
-  if (!visitorId || !(await takeSlot(tablesDB, visitorId))) {
+  // The whisper ID becomes the rumor ID, so accept only IDs that Appwrite generates.
+  if (!visitorId || !/^[0-9a-f]{20}$/.test(whisper.$id)) {
+    await close({ status: 'rejected', reply: null, emote: null });
+    return res.json({ status: 'rejected' });
+  }
+  // A slot of the visitor first, then a slot of the whole town.
+  const visitorSlot = await takeSlot(tablesDB, visitorId, WHISPERS_PER_WINDOW);
+  const townSlot = visitorSlot && (await takeSlot(tablesDB, 'town', TOWN_WHISPERS_PER_WINDOW));
+  if (!townSlot) {
     await close({ status: 'rate_limited', reply: null, emote: null });
     log(`Whisper ${whisper.$id}: rate limited`);
     return res.json({ status: 'rate_limited' });
   }
 
-  const text = cleanText(whisper.text, 140);
-  const resident = await tablesDB
-    .getRow({ databaseId: DATABASE_ID, tableId: 'residents', rowId: String(whisper.residentId) })
-    .catch(() => null);
-  if (!text || !resident) {
-    await close({ status: 'rejected', reply: null, emote: null });
-    return res.json({ status: 'rejected' });
-  }
-
-  const reaction = await reactTo(resident, text, log);
-  const reply = cleanText(reaction.reply, 100);
-  const emote = EMOTES.includes(reaction.emote) ? reaction.emote : 'thinking';
-  if (!reaction.appropriate) {
-    await close({ status: 'rejected', reply, emote });
-    log(`Whisper ${whisper.$id}: rejected as inappropriate`);
-    return res.json({ status: 'rejected' });
-  }
-
-  // The memory, the rumor, the feed event, and the whisper status are written together.
-  const world = await tablesDB.getRow({ databaseId: DATABASE_ID, tableId: 'world', rowId: 'world' });
-  const first = resident.name.split(' ')[0];
-  const operations = [
-    { action: 'create', databaseId: DATABASE_ID, tableId: 'memories', rowId: ID.unique(),
-      data: { residentId: resident.$id, tick: world.tick, kind: 'whisper', text, rumorId: whisper.$id } },
-    { action: 'create', databaseId: DATABASE_ID, tableId: 'rumors', rowId: whisper.$id,
-      data: { text, originResidentId: resident.$id, tick: world.tick, carriers: 1 } },
-    { action: 'create', databaseId: DATABASE_ID, tableId: 'events', rowId: ID.unique(),
-      data: { tick: world.tick, kind: 'whisper', place: resident.place, residentIds: [resident.$id], rumorId: whisper.$id,
-        text: `A visitor whispered to ${first}: «${text}»`, lines: JSON.stringify([{ speaker: resident.$id, text: reply, emote }]) } },
-    { action: 'update', databaseId: DATABASE_ID, tableId: 'whispers', rowId: whisper.$id,
-      data: { status: 'heard', reply, emote, visitorId } },
-  ];
-  const transaction = await tablesDB.createTransaction({ ttl: 60 });
   try {
-    await tablesDB.createOperations({ transactionId: transaction.$id, operations });
-    await tablesDB.updateTransaction({ transactionId: transaction.$id, commit: true });
-  } catch (err) {
-    await tablesDB.updateTransaction({ transactionId: transaction.$id, rollback: true }).catch(() => {});
-    throw err;
-  }
+    const text = cleanText(whisper.text, 140);
+    const resident = await tablesDB
+      .getRow({ databaseId: DATABASE_ID, tableId: 'residents', rowId: String(whisper.residentId) })
+      .catch(() => null);
+    if (!text || !resident) {
+      await close({ status: 'rejected', reply: null, emote: null });
+      return res.json({ status: 'rejected' });
+    }
 
-  log(`Whisper ${whisper.$id}: ${first} heard it and replied "${reply}"`);
-  return res.json({ status: 'heard' });
+    const reaction = await reactTo(resident, text, log);
+    const reply = cleanText(reaction.reply, 100);
+    const emote = EMOTES.includes(reaction.emote) ? reaction.emote : 'thinking';
+    if (!reaction.appropriate) {
+      await close({ status: 'rejected', reply, emote });
+      log(`Whisper ${whisper.$id}: rejected as inappropriate`);
+      return res.json({ status: 'rejected' });
+    }
+
+    // The memory, the rumor, the feed event, and the whisper status are written together.
+    const world = await tablesDB.getRow({ databaseId: DATABASE_ID, tableId: 'world', rowId: 'world' });
+    const first = resident.name.split(' ')[0];
+    const operations = [
+      { action: 'create', databaseId: DATABASE_ID, tableId: 'memories', rowId: ID.unique(),
+        data: { residentId: resident.$id, tick: world.tick, kind: 'whisper', text, rumorId: whisper.$id } },
+      { action: 'create', databaseId: DATABASE_ID, tableId: 'rumors', rowId: whisper.$id,
+        data: { text, originResidentId: resident.$id, tick: world.tick, carriers: 1 } },
+      { action: 'create', databaseId: DATABASE_ID, tableId: 'events', rowId: ID.unique(),
+        data: { tick: world.tick, kind: 'whisper', place: resident.place, residentIds: [resident.$id], rumorId: whisper.$id,
+          text: `A visitor whispered to ${first}: «${text}»`, lines: JSON.stringify([{ speaker: resident.$id, text: reply, emote }]) } },
+      { action: 'update', databaseId: DATABASE_ID, tableId: 'whispers', rowId: whisper.$id,
+        data: { status: 'heard', reply, emote, visitorId, $permissions: permissions } },
+    ];
+    const transaction = await tablesDB.createTransaction({ ttl: 60 });
+    try {
+      await tablesDB.createOperations({ transactionId: transaction.$id, operations });
+      await tablesDB.updateTransaction({ transactionId: transaction.$id, commit: true });
+    } catch (err) {
+      await tablesDB.updateTransaction({ transactionId: transaction.$id, rollback: true }).catch(() => {});
+      throw err;
+    }
+
+    log(`Whisper ${whisper.$id}: ${first} heard it and replied "${reply}"`);
+    return res.json({ status: 'heard' });
+  } catch (err) {
+    // Never leave the visitor waiting: a failed whisper is closed as rejected.
+    error(`Whisper ${whisper.$id} failed: ${err.message}`);
+    await close({ status: 'rejected', reply: null, emote: null }).catch(() => {});
+    return res.json({ status: 'rejected' });
+  }
 };

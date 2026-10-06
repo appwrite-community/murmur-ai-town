@@ -2,9 +2,9 @@
 import { Client, TablesDB } from 'node-appwrite';
 import { completeJson } from './llm.js';
 import { conversationPrompt, planPrompt } from './prompts.js';
-import { pairConversations, validateConversations, validatePlan } from './rules.js';
+import { pairConversations, sharedRumorIds, validateConversations, validatePlan } from './rules.js';
 import { buildOperations, commitTick } from './commit.js';
-import { loadTown, nextClock } from './town.js';
+import { DATABASE_ID, loadRumorKnowledge, loadTown, nextClock } from './town.js';
 
 export default async (context) => {
   try {
@@ -36,20 +36,26 @@ async function tick({ req, res, log, error }) {
 
   // 2. Residents who meet talk, and may pass on rumors they know.
   let talks = [];
+  let knowledge = new Map();
   if (conversations.length > 0) {
     const raw = await completeJson({ ...conversationPrompt(ctx, conversations), log });
-    const checked = validateConversations(raw.conversations, conversations, ctx.rumorsByResident);
+    // Check shared rumors against every memory in the table, not only the ones in the prompt.
+    knowledge = await loadRumorKnowledge(tablesDB, sharedRumorIds(raw.conversations));
+    const checked = validateConversations(raw.conversations, conversations, knowledge);
     talks = checked.results;
     rejected.push(...checked.rejected);
   }
 
   // 3. Write the whole tick in one transaction.
   const stats = { startedAt: new Date(started).toISOString(), ms: Date.now() - started, rejected: rejected.length };
-  const operations = buildOperations({ ctx, next, planned, talks, stats });
+  const operations = buildOperations({ ctx, next, planned, talks, knowledge, stats });
   try {
     await commitTick(tablesDB, operations);
   } catch (err) {
-    if (err.type === 'transaction_conflict') {
+    // A conflict is a harmless overlap only when another run wrote this tick.
+    const written = err.type === 'transaction_conflict'
+      && (await tablesDB.getRow({ databaseId: DATABASE_ID, tableId: 'ticks', rowId: `tick-${next.tick}` }).catch(() => null));
+    if (written) {
       log(`Tick ${next.tick} was already written by another run. Nothing changed.`);
       return res.json({ tick: next.tick, skipped: true });
     }

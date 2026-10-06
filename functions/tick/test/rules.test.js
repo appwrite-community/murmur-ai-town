@@ -46,7 +46,8 @@ test('talking needs both residents at the same place', () => {
 });
 
 test('a rumor only passes from a resident who knows it', () => {
-  const rumorsByResident = new Map([['bea', [{ rumorId: 'r1', text: 'The mayor cannot swim' }]]]);
+  // Who knows each rumor, as loaded from the memories table.
+  const knowledge = new Map([['r1', new Set(['bea'])], ['r2', new Set()]]);
   const conversations = [{ place: 'bakery', residents: ['bea', 'rafa'] }];
   const raw = [{
     id: 'c0',
@@ -59,11 +60,22 @@ test('a rumor only passes from a resident who knows it', () => {
     memories: [{ resident: 'rafa', text: 'Bea told me a secret.' }],
     feelings: [{ resident: 'rafa', toward: 'bea', delta: 50 }],
   }];
-  const { results, rejected } = validateConversations(raw, conversations, rumorsByResident);
+  const { results, rejected } = validateConversations(raw, conversations, knowledge);
   assert.equal(results[0].lines.length, 1);
   assert.deepEqual(results[0].shared.map((s) => [s.speaker, s.listener, s.rumorId]), [['bea', 'rafa', 'r1']]);
   assert.equal(results[0].feelings[0].delta, 10);
   assert.equal(rejected.length, 2);
+});
+
+test('a conversation passes on at most two rumors, and junk from the model is ignored', () => {
+  const knowledge = new Map([['r1', new Set(['bea'])], ['r2', new Set(['bea'])], ['r3', new Set(['bea'])]]);
+  const raw = [{ id: 'c0', lines: 'not a list', shared: ['r1', null,
+    { speaker: 'bea', listener: 'rafa', rumorId: 'r1', retelling: 'one' },
+    { speaker: 'bea', listener: 'rafa', rumorId: 'r2', retelling: 'two' },
+    { speaker: 'bea', listener: 'rafa', rumorId: 'r3', retelling: 'three' }], memories: null, feelings: [null] }];
+  const { results } = validateConversations(raw, [{ place: 'bakery', residents: ['bea', 'rafa'] }], knowledge);
+  assert.deepEqual(results[0].lines, []);
+  assert.deepEqual(results[0].shared.map((s) => s.rumorId), ['r1', 'r2']);
 });
 
 test('text is cleaned and cut at a word boundary', () => {

@@ -7,6 +7,7 @@ export const MOODS = ['cheerful', 'content', 'curious', 'excited', 'anxious', 'g
 
 export const MAX_LINE = 90;
 export const MAX_CONVERSATIONS = 3;
+export const MAX_SHARES_PER_TALK = 2;
 
 /** Removes control characters and quote marks the prompt uses, collapses spaces, and cuts the length. */
 export function cleanText(value, max) {
@@ -127,28 +128,34 @@ export function pairConversations(planned, residents) {
   return conversations;
 }
 
+/** Arrays of objects only: anything else from the model becomes an empty list. */
+const list = (value) => (Array.isArray(value) ? value.filter((x) => x && typeof x === 'object') : []);
+
 /**
  * Checks the model's conversations. A rumor only passes on when the speaker
- * knows it and the listener is the other person in the conversation.
+ * knows it, the listener does not, and both are in the same conversation.
+ * `knowledge` maps each shared rumor ID to everyone who knows it (from the database).
  */
-export function validateConversations(raw, conversations, rumorsByResident) {
+export function validateConversations(raw, conversations, knowledge) {
   const results = [];
   const rejected = [];
-  const knows = (id, rumorId) => (rumorsByResident.get(id) ?? []).some((r) => r.rumorId === rumorId);
+  const knows = (id, rumorId) => knowledge.get(rumorId)?.has(id) ?? false;
   const heardThisTick = new Set();
 
   conversations.forEach((conversation, index) => {
-    const out = (Array.isArray(raw) ? raw : []).find((c) => c?.id === `c${index}`) ?? {};
+    const out = list(raw).find((c) => c.id === `c${index}`) ?? {};
     const members = new Set(conversation.residents);
-    const lines = (out.lines ?? [])
+    const lines = list(out.lines)
       .filter((line) => members.has(line.speaker))
       .map((line) => ({ speaker: line.speaker, text: cleanText(line.text, MAX_LINE) }))
       .filter((line) => line.text)
       .slice(0, 4);
 
     const shared = [];
-    for (const share of out.shared ?? []) {
-      const ok = members.has(share.speaker) && members.has(share.listener) && share.speaker !== share.listener
+    for (const share of list(out.shared)) {
+      const retelling = cleanText(share.retelling, 160);
+      const ok = shared.length < MAX_SHARES_PER_TALK && retelling
+        && members.has(share.speaker) && members.has(share.listener) && share.speaker !== share.listener
         && knows(share.speaker, share.rumorId) && !knows(share.listener, share.rumorId)
         && !heardThisTick.has(`${share.listener}:${share.rumorId}`);
       if (!ok) {
@@ -156,16 +163,16 @@ export function validateConversations(raw, conversations, rumorsByResident) {
         continue;
       }
       heardThisTick.add(`${share.listener}:${share.rumorId}`);
-      shared.push({ ...share, retelling: cleanText(share.retelling, 160) });
+      shared.push({ speaker: share.speaker, listener: share.listener, rumorId: share.rumorId, retelling });
     }
 
-    const memories = (out.memories ?? [])
+    const memories = list(out.memories)
       .filter((m) => members.has(m.resident))
       .map((m) => ({ resident: m.resident, text: cleanText(m.text, 200) }))
       .filter((m) => m.text)
       .slice(0, 2);
 
-    const feelings = (out.feelings ?? [])
+    const feelings = list(out.feelings)
       .filter((f) => members.has(f.resident) && members.has(f.toward) && f.resident !== f.toward)
       .map((f) => ({ ...f, delta: Math.max(-10, Math.min(10, Math.round(Number(f.delta) || 0))) }));
 
@@ -173,4 +180,9 @@ export function validateConversations(raw, conversations, rumorsByResident) {
   });
 
   return { results, rejected };
+}
+
+/** The rumor IDs the model tried to pass on, so the tick can look up who knows them. */
+export function sharedRumorIds(raw) {
+  return [...new Set(list(raw).flatMap((c) => list(c.shared).map((s) => s.rumorId)).filter((id) => typeof id === 'string'))];
 }

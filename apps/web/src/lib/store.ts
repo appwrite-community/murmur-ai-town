@@ -40,6 +40,11 @@ export const useTown = create<TownState>(() => ({
   focusedRumor: null,
 }));
 
+function mergeEvents(live: TownEvent[], loaded: TownEvent[]) {
+  const all = new Map([...loaded, ...live].map((e) => [e.$id, e]));
+  return [...all.values()].sort((a, b) => Number(b.$sequence) - Number(a.$sequence)).slice(0, 80);
+}
+
 const byId = <T extends { $id: string }>(list: T[]) => Object.fromEntries(list.map((row) => [row.$id, row]));
 
 export const townActions = {
@@ -56,15 +61,19 @@ export const townActions = {
       tickArrivedAt: arrived ?? performance.now() - Math.min(Math.max(age, 0), TICK_SECONDS) * 1000,
       places: byId(data.places),
       residents: { ...byId(data.residents), ...current.residents },
-      events: data.events,
-      rumors: byId(data.rumors),
+      // Keep anything Realtime delivered while the town was loading.
+      events: mergeEvents(current.events, data.events),
+      rumors: { ...byId(data.rumors), ...current.rumors },
     });
   },
   failed(error: string) {
     useTown.setState({ status: 'error', error });
   },
   world(world: World) {
-    useTown.setState((s) => (s.world && world.tick === s.world.tick ? { world } : { world, tickArrivedAt: performance.now() }));
+    useTown.setState((s) => {
+      if (s.world && world.tick < s.world.tick) return s;
+      return s.world && world.tick === s.world.tick ? { world } : { world, tickArrivedAt: performance.now() };
+    });
   },
   resident(resident: Resident) {
     useTown.setState((s) => ({ residents: { ...s.residents, [resident.$id]: resident } }));
@@ -76,7 +85,11 @@ export const townActions = {
     useTown.setState((s) => ({ rumors: { ...s.rumors, [rumor.$id]: rumor } }));
   },
   whisper(whisper: Whisper) {
-    useTown.setState((s) => ({ whispers: { ...s.whispers, [whisper.$id]: whisper } }));
+    useTown.setState((s) => {
+      const known = s.whispers[whisper.$id];
+      if (known && known.$updatedAt > whisper.$updatedAt) return s;
+      return { whispers: { ...s.whispers, [whisper.$id]: whisper } };
+    });
   },
   select(id: string | null) {
     useTown.setState({ selectedId: id, whisperOpen: false });

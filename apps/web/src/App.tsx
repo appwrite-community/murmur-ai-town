@@ -10,13 +10,13 @@ export function App() {
   const backdrop = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let unsubscribe = () => {};
+    let unsubscribe: () => unknown = () => {};
     let cancelled = false;
     (async () => {
       try {
         const visitorId = await ensureVisitor();
         // Subscribe first, so no tick is missed between loading and listening.
-        unsubscribe = subscribeToTown({
+        unsubscribe = await subscribeToTown({
           world: townActions.world,
           resident: (row) => {
             const before = useTown.getState().residents[row.$id];
@@ -44,7 +44,7 @@ export function App() {
     })();
     return () => {
       cancelled = true;
-      unsubscribe();
+      void unsubscribe();
     };
   }, []);
 

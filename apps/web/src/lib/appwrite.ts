@@ -43,8 +43,11 @@ export async function loadResidentDetails(residentId: string) {
   return { memories, relationships };
 }
 
-/** One Realtime subscription for everything the town shows. */
-export function subscribeToTown(handlers: {
+/**
+ * One Realtime subscription for everything the town shows. Resolves once the
+ * subscription is active, so the caller can load the town after it.
+ */
+export async function subscribeToTown(handlers: {
   world: (row: World) => void;
   resident: (row: Resident) => void;
   event: (row: TownEvent) => void;
@@ -59,7 +62,9 @@ export function subscribeToTown(handlers: {
     rumors: town.table('rumors').row(),
     whispers: town.table('whispers').row(),
   };
-  const subscription = realtime.subscribe(Object.values(tables), (message) => {
+  const subscription = await realtime.subscribe(Object.values(tables), (message) => {
+    // Rows are only deleted when the town is reset. Reload the page to see the new town.
+    if (message.events.some((e) => e.endsWith('.delete'))) return;
     const row = message.payload as never;
     const has = (table: string) => message.channels.some((c) => c.includes(`.tables.${table}.`));
     if (has('world')) handlers.world(row);
@@ -68,9 +73,7 @@ export function subscribeToTown(handlers: {
     else if (has('rumors')) handlers.rumor(row);
     else if (has('whispers')) handlers.whisper(row);
   });
-  return () => {
-    subscription.then((s) => s.unsubscribe());
-  };
+  return () => subscription.unsubscribe();
 }
 
 /** Visitors can only create whispers. The row is readable by the visitor who wrote it. */

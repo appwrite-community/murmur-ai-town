@@ -1,7 +1,7 @@
 // Calls GPT-6 Luna through OpenRouter and returns the parsed JSON that matches `schema`.
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
-export async function completeJson({ name, schema, system, user, log = () => {} }) {
+export async function completeJson({ name, schema, system, user, log = () => {}, timeoutMs = 45_000 }) {
   const keys = [process.env.OPENROUTER_API_KEY, process.env.OPENROUTER_API_KEY_FALLBACK].filter(Boolean);
   if (keys.length === 0) throw new Error('OPENROUTER_API_KEY is not set');
 
@@ -9,7 +9,7 @@ export async function completeJson({ name, schema, system, user, log = () => {} 
     const response = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({
         model: process.env.OPENROUTER_MODEL || 'openai/gpt-6-luna',
         reasoning: { effort: 'low' },
