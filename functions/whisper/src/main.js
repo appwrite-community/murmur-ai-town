@@ -44,6 +44,11 @@ async function takeSlot(tablesDB, owner, count) {
   return false;
 }
 
+/** Whisper text becomes public, so links, emails, handles, and phone numbers are refused outright. */
+function looksLikeContactInfo(text) {
+  return /(https?:\/\/|www\.|\b[\w.-]+\.(com|net|org|io|app|dev|xyz)\b|@\w|\+?\d[\d\s().-]{7,}\d)/i.test(text);
+}
+
 async function reactTo(resident, text, log) {
   return completeJson({
     name: 'reaction',
@@ -82,11 +87,17 @@ export default async ({ req, res, log, error }) => {
   const close = (data) =>
     tablesDB.updateRow({ databaseId: DATABASE_ID, tableId: 'whispers', rowId: whisper.$id, data: { visitorId: visitorId || null, ...data }, permissions });
 
-  // The whisper ID becomes the rumor ID, so accept only IDs that Appwrite generates.
-  if (!visitorId || !/^[0-9a-f]{20}$/.test(whisper.$id)) {
+  // Cheap checks first, before the whisper takes a slot. The whisper ID becomes the
+  // rumor ID, so only IDs that Appwrite generates are accepted.
+  const text = cleanText(whisper.text, 140);
+  const resident = await tablesDB
+    .getRow({ databaseId: DATABASE_ID, tableId: 'residents', rowId: String(whisper.residentId) })
+    .catch(() => null);
+  if (!visitorId || !/^[0-9a-f]{20}$/.test(whisper.$id) || !text || !resident || looksLikeContactInfo(text)) {
     await close({ status: 'rejected', reply: null, emote: null });
     return res.json({ status: 'rejected' });
   }
+
   // A slot of the visitor first, then a slot of the whole town.
   const visitorSlot = await takeSlot(tablesDB, visitorId, WHISPERS_PER_WINDOW);
   const townSlot = visitorSlot && (await takeSlot(tablesDB, 'town', TOWN_WHISPERS_PER_WINDOW));
@@ -97,15 +108,6 @@ export default async ({ req, res, log, error }) => {
   }
 
   try {
-    const text = cleanText(whisper.text, 140);
-    const resident = await tablesDB
-      .getRow({ databaseId: DATABASE_ID, tableId: 'residents', rowId: String(whisper.residentId) })
-      .catch(() => null);
-    if (!text || !resident) {
-      await close({ status: 'rejected', reply: null, emote: null });
-      return res.json({ status: 'rejected' });
-    }
-
     const reaction = await reactTo(resident, text, log);
     const reply = cleanText(reaction.reply, 100);
     const emote = EMOTES.includes(reaction.emote) ? reaction.emote : 'thinking';
