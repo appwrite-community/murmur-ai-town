@@ -97,7 +97,7 @@ export function ResidentCard() {
       <ul className="memories">
         {!details && <li className="muted">Remembering…</li>}
         {details?.memories.length === 0 && <li className="muted">Nothing much yet.</li>}
-        {details?.memories.slice(0, 4).map((m) => (
+        {details?.memories.slice(0, 3).map((m) => (
           <li key={m.$id} className={`memory memory-${m.kind}`}>
             {m.kind === 'whisper' && <span className="memory-tag">whisper</span>}
             {m.kind === 'heard' && m.fromResidentId && <span className="memory-tag">from {residents[m.fromResidentId]?.name.split(' ')[0]}</span>}
