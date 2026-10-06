@@ -120,6 +120,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .tabs button.on { background: var(--paper); color: var(--ink); box-shadow: 0 2px 0 var(--paper-3), 0 0 0 2px var(--ink); }
 .count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin-left: 4px; border-radius: 99px; background: var(--pink); color: #fff; font-size: 12px; }
 .feed { list-style: none; margin: 10px 0 0; padding: 0 2px 0 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; scrollbar-color: var(--paper-3) transparent; }
+.feed > li { flex: none; }
 .feed-item { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: start; padding: 8px 9px; border-radius: 14px; background: #fffbf2; border: 2px solid var(--paper-3); animation: slide-in 0.35s ease-out; }
 .feed-avatars { display: flex; }
 .feed-avatars button { border: 0; padding: 0; background: none; margin-right: -8px; }
