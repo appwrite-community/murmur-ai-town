@@ -8,11 +8,13 @@ import { useTown } from '../lib/store';
 import type { Emote } from '../lib/types';
 import { EmoteIcon } from './icons';
 
-type Entry = { el: HTMLDivElement; tail: HTMLDivElement; residentId: string; priority: number };
+type Entry = { el: HTMLDivElement; tail: HTMLDivElement; residentId: string; priority: number; w: number; h: number };
 
 const entries = new Map<string, Entry>();
 const HEAD_HEIGHT = 1.2;
 const GAP = 6;
+let frame = 0;
+let bounds = { minLeft: 0, maxRight: Infinity };
 
 /** Called by the scene every frame with the current camera. */
 export function layoutLabels(
@@ -34,16 +36,28 @@ export function layoutLabels(
     v.set(p.x, p.y + HEAD_HEIGHT * (visible.get(e.residentId) ?? 1), p.z).project(camera);
     const x = (v.x * 0.5 + 0.5) * width;
     const y = (-v.y * 0.5 + 0.5) * height;
-    items.push({ e, x, y, w: e.el.offsetWidth, h: e.el.offsetHeight });
+    items.push({ e, x, y, w: e.w, h: e.h });
   }
+
+  // Keep labels clear of the HUD panels on the left and right. Reading layout is
+  // expensive, so panel bounds refresh every 20 frames.
+  if (frame++ % 20 === 0) {
+    const crier = document.querySelector('.crier')?.getBoundingClientRect();
+    const leftPanel = document.querySelector('.hud-top-left')?.getBoundingClientRect();
+    bounds = {
+      maxRight: (crier?.left ?? width) - 10,
+      minLeft: (leftPanel && leftPanel.height > 160 ? leftPanel.right : 0) + 10,
+    };
+  }
+  const { minLeft, maxRight } = bounds;
 
   // Residents lower on screen are closer to the camera: place their labels first.
   items.sort((a, b) => b.e.priority - a.e.priority || b.y - a.y);
   const placed: { l: number; r: number; t: number; b: number }[] = [];
   for (const it of items) {
     let bottom = it.y - 14;
-    const l = it.x - it.w / 2;
-    const r = it.x + it.w / 2;
+    const l = Math.max(minLeft, Math.min(it.x - it.w / 2, maxRight - it.w));
+    const r = l + it.w;
     for (let guard = 0; guard < 12; guard++) {
       const t = bottom - it.h;
       const hit = placed.find((p) => l < p.r + GAP && r > p.l - GAP && t < p.b + GAP && bottom > p.t - GAP);
@@ -70,7 +84,8 @@ function useRegister(id: string, residentId: string, priority: number) {
         return;
       }
       el.style.visibility = 'hidden';
-      entries.set(id, { el, tail: el.querySelector('.label-tail') as HTMLDivElement, residentId, priority });
+      // A label's content never changes (a new line is a new label), so measure it once.
+      entries.set(id, { el, tail: el.querySelector('.label-tail') as HTMLDivElement, residentId, priority, w: el.offsetWidth, h: el.offsetHeight });
     },
     [id, residentId, priority],
   );

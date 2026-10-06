@@ -147,16 +147,36 @@ const LAMP_SPOTS: Vec2[] = [
   [2.6, -2.6], [-2.6, -2.6], [2.6, 2.6], [-2.6, 2.6], [-6, -2.6], [6, -2.6], [-1.4, 6.2], [1.6, -5.4], [-10.4, -4.4], [10.6, 4.8],
 ];
 
+/** Warm pools of light under the lamps at night. Additive decals, so they cost no lighting work. */
 function Lamps() {
-  const lights = useRef<THREE.PointLight[]>([]);
+  const material = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 128;
+    const g = canvas.getContext('2d')!;
+    const gradient = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(255, 190, 110, 0.85)');
+    gradient.addColorStop(0.45, 'rgba(255, 160, 80, 0.35)');
+    gradient.addColorStop(1, 'rgba(255, 140, 60, 0)');
+    g.fillStyle = gradient;
+    g.fillRect(0, 0, 128, 128);
+    return new THREE.MeshBasicMaterial({
+      map: new THREE.CanvasTexture(canvas),
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false,
+    });
+  }, []);
   useFrame(() => {
-    const night = useSky.getState().night;
-    for (const l of lights.current) if (l) l.intensity = night * 6;
+    material.opacity = useSky.getState().night * 0.9;
   });
   return (
     <group>
-      {LAMP_SPOTS.slice(0, 6).map(([x, z], i) => (
-        <pointLight key={i} ref={(l) => { if (l) lights.current[i] = l; }} position={[x, 1.9, z]} color="#ffb357" distance={7} decay={1.6} intensity={0} />
+      {LAMP_SPOTS.map(([x, z], i) => (
+        <mesh key={i} position={[x, 0.035, z]} rotation-x={-Math.PI / 2} material={material} renderOrder={2}>
+          <planeGeometry args={[6.4, 6.4]} />
+        </mesh>
       ))}
       <LampGlows />
     </group>
