@@ -71,7 +71,10 @@ export function buildOperations({ ctx, next, planned, talks, stats }) {
     const current = ctx.relationships.find((r) => r.$id === `${x}__${y}`);
     const delta = talk.feelings.reduce((sum, f) => sum + f.delta, 0) / Math.max(1, talk.feelings.length);
     const affinity = Math.max(-100, Math.min(100, Math.round((current?.affinity ?? 0) + delta)));
-    story.push(op('upsert', 'relationships', `${x}__${y}`, { a: x, b: y, affinity, lastTick: next.tick, note: current?.note ?? '' }));
+    // Create the pair the first time two residents talk, update it after that.
+    story.push(current
+      ? op('update', 'relationships', current.$id, { affinity, lastTick: next.tick })
+      : op('create', 'relationships', `${x}__${y}`, { a: x, b: y, affinity, lastTick: next.tick, note: '' }));
   }
 
   // How many residents know each rumor after this tick.

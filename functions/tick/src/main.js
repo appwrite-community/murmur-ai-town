@@ -6,7 +6,19 @@ import { pairConversations, validateConversations, validatePlan } from './rules.
 import { buildOperations, commitTick } from './commit.js';
 import { loadTown, nextClock } from './town.js';
 
-export default async ({ req, res, log, error }) => {
+export default async (context) => {
+  try {
+    return await tick(context);
+  } catch (err) {
+    // Log the network cause too: fetch errors hide it in err.cause.
+    const causes = [err.cause, ...(err.cause?.errors ?? [])].filter(Boolean);
+    const detail = causes.map((c) => [c.code, c.errno, c.syscall, c.address, c.port, c.hostname].filter(Boolean).join(' ')).join('; ');
+    context.error(`Tick failed: ${err.message}${detail ? ` (cause: ${detail}; endpoint ${process.env.APPWRITE_FUNCTION_API_ENDPOINT})` : ''}`);
+    throw err;
+  }
+};
+
+async function tick({ req, res, log, error }) {
   const started = Date.now();
   const client = new Client()
     .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT)
@@ -48,4 +60,4 @@ export default async ({ req, res, log, error }) => {
   for (const reason of rejected) log(`Replaced: ${JSON.stringify(reason)}`);
   log(`Tick ${next.tick}: ${operations.length} operations, ${talks.length} conversations, ${rejected.length} replaced, ${Date.now() - started} ms`);
   return res.json({ tick: next.tick, operations: operations.length, conversations: talks.length, rejected: rejected.length, ms: Date.now() - started });
-};
+}

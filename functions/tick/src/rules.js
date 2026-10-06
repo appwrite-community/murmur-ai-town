@@ -11,7 +11,12 @@ export const MAX_CONVERSATIONS = 3;
 /** Removes control characters and quote marks the prompt uses, collapses spaces, and cuts the length. */
 export function cleanText(value, max) {
   if (typeof value !== 'string') return '';
-  const text = value.replace(/[\u0000-\u001f\u007f«»]/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = value
+    // eslint-disable-next-line no-control-regex -- removing control characters is the point
+    .replace(/[\u0000-\u001f\u007f«»]/g, ' ')
+    .replace(/\s*[\u2013\u2014]\s*/g, ', ')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (text.length <= max) return text;
   // Cut at a word boundary, so a long line never ends mid-word.
   const cut = text.slice(0, max - 1);
